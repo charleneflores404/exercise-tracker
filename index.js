@@ -92,3 +92,13 @@ app.post("/api/users", async (req, res) => {
     res.status(500).json({ error: "invalid url" });
   }
 });
+
+app.get("/api/users", async (req, res) => {
+  try {
+    const users = await User.find();
+    res.json(users);
+  } catch (err) {
+    console.error("Error in POST /api/users", err);
+    res.status(500).json({ error: "Cannot get users" });
+  }
+});
