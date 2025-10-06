@@ -23,9 +23,10 @@ const userSchema = new Schema({
 });
 
 const exerciseSchema = new Schema({
+  userId: { type: String, required: true },
   description: { type: String, required: true },
   duration: { type: Number, required: true },
-  date: { type: Date },
+  date: { type: String, required: true },
 });
 
 // const logSchema = new Schema({
@@ -105,6 +106,17 @@ const findUserbyId = async (_id) => {
   }
 };
 
+const findExercisesByUserId = async (userId) => {
+  try {
+    const exercises = await Exercise.find({ userId });
+    console.log("Found exercises", exercises);
+    return exercises;
+  } catch (err) {
+    console.log("Error finding exercise", err);
+    throw err;
+  }
+};
+
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.post("/api/users", async (req, res) => {
@@ -150,7 +162,7 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
         userId: _id,
         description,
         duration,
-        date: date ? new Date(date) : new Date(),
+        date: date ? new Date(date).toDateString() : new Date().toDateString(),
       });
       console.log("Exercise created", exercise);
 
@@ -158,7 +170,7 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
         username,
         description: exercise.description,
         duration: exercise.duration,
-        date: exercise.date.toDateString(),
+        date: exercise.date,
         _id,
       });
     }
@@ -168,7 +180,21 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
   }
 });
 
-// const cnt = findLog()
-// const count = count + 1
-// const logFields = {username, count, _id, log: exercise}
-// const log = await createLog(exerciseFields);
+app.get("/api/users/:_id/logs", async (req, res) => {
+  const userId = req.params._id;
+  try {
+    const username = await findUserbyId(userId);
+    const exercises = await findExercisesByUserId(userId);
+    const count = await Exercise.countDocuments({ userId });
+
+    res.json({
+      username,
+      count,
+      _id: userId,
+      log: exercises,
+    });
+  } catch (err) {
+    console.log("Error in GET /api/users/:_id/logs", err);
+    res.status(500).json({ error: "Cannot get logs" });
+  }
+});
