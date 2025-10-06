@@ -18,26 +18,25 @@ mongoose
 // create schema
 const Schema = mongoose.Schema;
 
-const exerciseSchema = new Schema({
-  // username: { type: String, required: true },
-  description: { type: String, required: true },
-  duration: { type: Number, required: true },
-  date: { type: String, required: true }, // type Date?
-});
-
 const userSchema = new Schema({
   username: { type: String, required: true },
 });
 
-const logSchema = new Schema({
-  username: { type: String, required: true },
-  count: { type: Number, required: true },
-  log: [exerciseSchema], // subdoc, type subSchema?
+const exerciseSchema = new Schema({
+  description: { type: String, required: true },
+  duration: { type: Number, required: true },
+  date: { type: Date },
 });
+
+// const logSchema = new Schema({
+//   username: { type: String, required: true },
+//   count: { type: Number, required: true },
+//   log: [exerciseSchema], // subdoc, type subSchema?
+// });
 
 const User = mongoose.model("User", userSchema);
 const Exercise = mongoose.model("Exercise", exerciseSchema);
-const Log = mongoose.model("Log", logSchema);
+// const Log = mongoose.model("Log", logSchema);
 
 app.use(cors());
 app.use(express.static("public"));
@@ -53,6 +52,7 @@ const listener = app.listen(process.env.PORT || 3000, () => {
 const createUser = async (username) => {
   try {
     const user = new User({ username });
+    console.log("username to save: ", username);
     const newUser = await user.save(); // save to db
     console.log("User saved: ", newUser);
     return newUser;
@@ -65,11 +65,10 @@ const createUser = async (username) => {
 // Create exercise
 const createExercise = async (exerciseFields) => {
   try {
-    console.log("reached1");
-    const exercise = new Exercise({ exerciseFields });
-    console.log("reached2");
+    const exercise = new Exercise(exerciseFields);
     const newExercise = await exercise.save();
-    console.log("reached3");
+    console.log("reached here");
+    return newExercise;
   } catch (err) {
     console.log("Error saving exercise", err);
     throw err;
@@ -77,14 +76,14 @@ const createExercise = async (exerciseFields) => {
 };
 
 // Create log
-const createLog = async (logFields) => {
-  try {
-    const log = new Log({ logFields });
-  } catch (err) {
-    console.log("Error saving log", err);
-    throw err;
-  }
-};
+// const createLog = async (logFields) => {
+//   try {
+//     const log = new Log({ logFields });
+//   } catch (err) {
+//     console.log("Error saving log", err);
+//     throw err;
+//   }
+// };
 
 const findUser = async (username) => {
   try {
@@ -112,8 +111,6 @@ app.post("/api/users", async (req, res) => {
   const username = req.body.username;
   console.log(username);
   try {
-    // IS IT NECESSARY TO CHECK OR DOES MONGO AUTO CHECK BEFORE CREATE
-    // check if user already exists
     let user = await findUser(username);
     console.log("User found: ", user);
     // create if user is new
@@ -122,7 +119,6 @@ app.post("/api/users", async (req, res) => {
       // user = newUser
       console.log("User created: ", user);
     }
-    // return the user
     return res.json({ username: user.username, _id: user._id });
   } catch (err) {
     console.error("Error in POST /api/users", err);
@@ -148,26 +144,31 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
     console.log("Username found:", username);
 
     if (username) {
-      const description = req.body.description;
-      const duration = req.body.duration;
-      let d = new Date(req.body.date); // convert date
-      if (isNaN(d)) {
-        d = new Date(); // date today if none given
-      }
-      const date = d.toDateString();
+      const { description, duration, date } = req.body;
 
-      const exerciseFields = { description, duration, date };
-      console.log("Exercise fields created", exerciseFields);
-      const exercise = await createExercise(exerciseFields);
+      const exercise = await createExercise({
+        userId: _id,
+        description,
+        duration,
+        date: date ? new Date(date) : new Date(),
+      });
       console.log("Exercise created", exercise);
 
-      // const cnt = findLog()
-      // const count = count + 1
-      // const logFields = {username, count, _id, log: exercise}
-      // const log = await createLog(exerciseFields);
+      res.json({
+        username,
+        description: exercise.description,
+        duration: exercise.duration,
+        date: exercise.date.toDateString(),
+        _id,
+      });
     }
   } catch (err) {
     console.log("Error in POST /api/users/:_id/exercises", err);
     res.status(500).json({ error: "Cannot add exercise" });
   }
 });
+
+// const cnt = findLog()
+// const count = count + 1
+// const logFields = {username, count, _id, log: exercise}
+// const log = await createLog(exerciseFields);
