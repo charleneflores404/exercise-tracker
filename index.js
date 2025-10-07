@@ -26,7 +26,7 @@ const exerciseSchema = new Schema({
   userId: { type: String, required: true },
   description: { type: String, required: true },
   duration: { type: Number, required: true },
-  date: { type: String, required: true },
+  date: { type: Date, required: true },
 });
 
 // const logSchema = new Schema({
@@ -106,9 +106,9 @@ const findUserbyId = async (_id) => {
   }
 };
 
-const findExercisesByUserId = async (userId) => {
+const findExercisesByFilter = async (filter, limit) => {
   try {
-    const exercises = await Exercise.find({ userId });
+    const exercises = await Exercise.find(filter).limit(+limit || 0);
     console.log("Found exercises", exercises);
     return exercises;
   } catch (err) {
@@ -162,7 +162,7 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
         userId: _id,
         description,
         duration,
-        date: date ? new Date(date).toDateString() : new Date().toDateString(),
+        date: date ? new Date(date) : new Date(),
       });
       console.log("Exercise created", exercise);
 
@@ -170,7 +170,7 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
         username,
         description: exercise.description,
         duration: exercise.duration,
-        date: exercise.date,
+        date: exercise.date.toDateString(),
         _id,
       });
     }
@@ -182,17 +182,35 @@ app.post("/api/users/:_id/exercises", async (req, res) => {
 
 app.get("/api/users/:_id/logs", async (req, res) => {
   const userId = req.params._id;
+  const { from, to, limit } = req.query;
+
+  const filter = { userId };
+  if (from || to) {
+    filter.date = {};
+    if (from) filter.date.$gte = new Date(from);
+    if (to) filter.date.$lte = new Date(to);
+  }
+
   try {
     const username = await findUserbyId(userId);
-    const exercises = await findExercisesByUserId(userId);
-    const count = await Exercise.countDocuments({ userId });
+    // const count = await Exercise.countDocuments({ userId });
+    const exercises = await findExercisesByFilter(filter, limit);
+    // const exercises = await Exercise.find(filter).limit(+limit || 0);
+    console.log("see me?");
 
     res.json({
       username,
-      count,
+      // count,
+      count: exercises.length,
       _id: userId,
-      log: exercises,
+      // log: exercises,
+      log: exercises.map((ex) => ({
+        description: ex.description,
+        duration: ex.duration,
+        date: ex.date.toDateString(),
+      })),
     });
+    console.log("see me now?");
   } catch (err) {
     console.log("Error in GET /api/users/:_id/logs", err);
     res.status(500).json({ error: "Cannot get logs" });
